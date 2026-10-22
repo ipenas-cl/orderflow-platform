@@ -60,6 +60,8 @@ jobs:
       - name: Trivy - fail on fixable HIGH/CRITICAL
         uses: aquasecurity/trivy-action@v0.36.0
         with:
+          version: v0.76.1     # pin the scanner, not just the wrapper action
+          scanners: vuln
           image-ref: ${{ env.REGISTRY }}/${{ matrix.service }}@${{ steps.build.outputs.digest }}
           severity: HIGH,CRITICAL
           ignore-unfixed: true
@@ -68,7 +70,15 @@ jobs:
           output: trivy.sarif
       - uses: github/codeql-action/upload-sarif@v3
         if: always()
-        with: { sarif_file: trivy.sarif, category: "trivy-${{ matrix.service }}" }
+        with:
+          sarif_file: trivy.sarif
+          category: "trivy-${{ matrix.service }}"
+          # the workspace holds the app repo checkout; attribute results to this repo's commit
+          sha: ${{ github.sha }}
+          ref: ${{ github.ref }}
+      - name: Trivy findings (readable)
+        if: failure()
+        run: jq -r '.runs[].results[] | "\(.ruleId)  \(.message.text | split("\n")[0:3] | join(" "))"' trivy.sarif || true
       - uses: sigstore/cosign-installer@v3
       - name: Sign image and attest SBOM (keyless)
         env:
