@@ -2,73 +2,89 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: orderflow
 resources:
-  - ../../base
-  - external-secrets.yaml
+- ../../base
+- external-secrets.yaml
 images:
-  - name: ghcr.io/ipenas-cl/orderflow/orders
-    newTag: 0.1.0
-  - name: ghcr.io/ipenas-cl/orderflow/payments
-    newTag: 0.1.0
-  - name: ghcr.io/ipenas-cl/orderflow/inventory
-    newTag: 0.1.0
-  - name: ghcr.io/ipenas-cl/orderflow/fulfillment
-    newTag: 0.1.0
-  - name: ghcr.io/ipenas-cl/orderflow/admin
-    newTag: 0.1.0
-  - name: ghcr.io/ipenas-cl/orderflow/payprovider
-    newTag: 0.1.0
-  - name: ghcr.io/ipenas-cl/orderflow/devissuer
-    newTag: 0.1.0
+- name: ghcr.io/ipenas-cl/orderflow/admin
+  newName: ghcr.io/ipenas-cl/orderflow-platform/admin
+  newTag: sha-d26d9bb1c9df
+- name: ghcr.io/ipenas-cl/orderflow/devissuer
+  newName: ghcr.io/ipenas-cl/orderflow-platform/devissuer
+  newTag: sha-d26d9bb1c9df
+- name: ghcr.io/ipenas-cl/orderflow/fulfillment
+  newName: ghcr.io/ipenas-cl/orderflow-platform/fulfillment
+  newTag: sha-d26d9bb1c9df
+- name: ghcr.io/ipenas-cl/orderflow/inventory
+  newName: ghcr.io/ipenas-cl/orderflow-platform/inventory
+  newTag: sha-d26d9bb1c9df
+- name: ghcr.io/ipenas-cl/orderflow/orders
+  newName: ghcr.io/ipenas-cl/orderflow-platform/orders
+  newTag: sha-d26d9bb1c9df
+- name: ghcr.io/ipenas-cl/orderflow/payments
+  newName: ghcr.io/ipenas-cl/orderflow-platform/payments
+  newTag: sha-d26d9bb1c9df
+- name: ghcr.io/ipenas-cl/orderflow/payprovider
+  newName: ghcr.io/ipenas-cl/orderflow-platform/payprovider
+  newTag: sha-d26d9bb1c9df
 patches:
-  - target: { kind: Rollout }
-    patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 3
-  - target: { kind: ScaledObject }
-    patch: |-
-      - op: replace
-        path: /spec/minReplicaCount
-        value: 3
-      - op: replace
-        path: /spec/maxReplicaCount
-        value: 12
-  - target: { kind: HorizontalPodAutoscaler }
-    patch: |-
-      - op: replace
-        path: /spec/minReplicas
-        value: 3
-      - op: replace
-        path: /spec/maxReplicas
-        value: 12
-  - target: { kind: ServiceAccount, name: payments }
-    patch: |-
-      - op: add
-        path: /metadata/annotations
-        value:
-          eks.amazonaws.com/role-arn: arn:aws:iam::111111111111:role/orderflow-prod-use1-payments
-  - target: { kind: Rollout, name: admin }
-    patch: |-
-      - op: add
-        path: /spec/template/spec/containers/0/env/-
-        value: { name: OIDC_ISSUER, value: "https://orderflow-prod.us.auth0.com/" }
-      - op: add
-        path: /spec/template/spec/containers/0/env/-
-        value: { name: OIDC_JWKS_URL, value: "https://orderflow-prod.us.auth0.com/.well-known/jwks.json" }
-  - target: { kind: Rollout }
-    patch: |-
-      - op: replace
-        path: /spec/strategy/canary/steps
-        value:
-          - setWeight: 10
-          - pause: { duration: 5m }
-          - setWeight: 25
-          - pause: { duration: 10m }
-          - setWeight: 50
-          - pause: { duration: 10m }
-          - setWeight: 100
-  - target: { kind: PodDisruptionBudget }
-    patch: |-
-      - op: replace
-        path: /spec/maxUnavailable
-        value: 1
+- patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 3
+  target:
+    kind: Rollout
+- patch: |-
+    - op: replace
+      path: /spec/minReplicaCount
+      value: 3
+    - op: replace
+      path: /spec/maxReplicaCount
+      value: 12
+  target:
+    kind: ScaledObject
+- patch: |-
+    - op: replace
+      path: /spec/minReplicas
+      value: 3
+    - op: replace
+      path: /spec/maxReplicas
+      value: 12
+  target:
+    kind: HorizontalPodAutoscaler
+- patch: |-
+    - op: add
+      path: /metadata/annotations
+      value:
+        eks.amazonaws.com/role-arn: arn:aws:iam::111111111111:role/orderflow-prod-use1-payments
+  target:
+    kind: ServiceAccount
+    name: payments
+- patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value: { name: OIDC_ISSUER, value: "https://orderflow-prod.us.auth0.com/" }
+    - op: add
+      path: /spec/template/spec/containers/0/env/-
+      value: { name: OIDC_JWKS_URL, value: "https://orderflow-prod.us.auth0.com/.well-known/jwks.json" }
+  target:
+    kind: Rollout
+    name: admin
+- patch: |-
+    - op: replace
+      path: /spec/strategy/canary/steps
+      value:
+        - setWeight: 10
+        - pause: { duration: 5m }
+        - setWeight: 25
+        - pause: { duration: 10m }
+        - setWeight: 50
+        - pause: { duration: 10m }
+        - setWeight: 100
+  target:
+    kind: Rollout
+- patch: |-
+    - op: replace
+      path: /spec/maxUnavailable
+      value: 1
+  target:
+    kind: PodDisruptionBudget
