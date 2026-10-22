@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kyverno-policies
+  namespace: argocd
+  annotations: { argocd.argoproj.io/sync-wave: "-4" }
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: default
+  source:
+    repoURL: git://git-server.argocd.svc.cluster.local/repo
+    targetRevision: HEAD
+    path: gitops/platform/kyverno-policies-kind
+  destination: { server: https://kubernetes.default.svc, namespace: kyverno }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: orderflow
+  namespace: argocd
+  annotations: { argocd.argoproj.io/sync-wave: "0" }
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: default
+  source:
+    repoURL: git://git-server.argocd.svc.cluster.local/repo
+    targetRevision: HEAD
+    path: gitops/orderflow/overlays/kind
+  destination: { server: https://kubernetes.default.svc, namespace: orderflow }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]

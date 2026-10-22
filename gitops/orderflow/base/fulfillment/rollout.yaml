@@ -1,0 +1,103 @@
+# fulfillment: Argo Rollouts canary. Each step is gated by the SLO analysis in
+# ../analysis-template.yaml; a failed analysis aborts and scales the canary
+# to zero automatically (no human in the loop).
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: fulfillment
+  labels: { app.kubernetes.io/name: fulfillment, app.kubernetes.io/part-of: orderflow }
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels: { app.kubernetes.io/name: fulfillment }
+  strategy:
+    canary:
+      maxUnavailable: 0
+      analysis:
+        templates: [{ templateName: slo-canary }]
+        startingStep: 1
+        args:
+          - name: service
+            value: fulfillment
+          - name: canary-hash
+            valueFrom: { podTemplateHashValue: Latest }
+      steps:
+        - setWeight: 25
+        - pause: { duration: 60s }
+        - setWeight: 50
+        - pause: { duration: 60s }
+        - setWeight: 100
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: fulfillment, app.kubernetes.io/part-of: orderflow }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /metrics
+    spec:
+      serviceAccountName: fulfillment
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector: { matchLabels: { app.kubernetes.io/name: fulfillment } }
+          matchLabelKeys: [rollouts-pod-template-hash]
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector: { matchLabels: { app.kubernetes.io/name: fulfillment } }
+          matchLabelKeys: [rollouts-pod-template-hash]
+      containers:
+        - name: app
+          image: ghcr.io/ipenas-cl/orderflow/fulfillment:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports: [{ name: http, containerPort: 8080 }]
+          env:
+            - name: HTTP_ADDR
+              value: ":8080"
+            - name: OTEL_SERVICE_NAME
+              value: fulfillment
+            - name: NATS_URL
+              value: nats://nats:4222
+            - name: DB_HOST
+              valueFrom: { secretKeyRef: { name: orderflow-db, key: host } }
+            - name: DB_USER
+              valueFrom: { secretKeyRef: { name: orderflow-db, key: username } }
+            - name: DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: orderflow-db, key: password } }
+            - name: DB_SSLMODE
+              valueFrom: { secretKeyRef: { name: orderflow-db, key: sslmode } }
+            - name: DATABASE_URL
+              value: postgres://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):5432/fulfillment?sslmode=$(DB_SSLMODE)
+            - name: FULFILLMENT_AUTOPILOT
+              value: "3s"
+            - name: CARRIER_FAILURE_RATE
+              value: "0.1"
+          resources:
+            requests: { cpu: 50m, memory: 48Mi }
+            limits: { cpu: 500m, memory: 192Mi }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 2
+            failureThreshold: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }

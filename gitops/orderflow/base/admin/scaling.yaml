@@ -1,0 +1,14 @@
+# Request-driven service: scale on CPU (HPA targets the Rollout's scale subresource).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: admin
+spec:
+  scaleTargetRef: { apiVersion: argoproj.io/v1alpha1, kind: Rollout, name: admin }
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 70 } }
+  behavior:
+    scaleDown: { stabilizationWindowSeconds: 120 }

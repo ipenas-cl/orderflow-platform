@@ -1,0 +1,18 @@
+# kind (make prove): the repo is served by an in-cluster git daemon (proof/manifests/git-server.yaml).
+# The only thing applied by hand (once per cluster). Everything else is
+# reconciled from git: apps/<env> holds one Application per component.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: default
+  source:
+    repoURL: git://git-server.argocd.svc.cluster.local/repo
+    targetRevision: HEAD
+    path: gitops/apps/kind
+  destination: { server: https://kubernetes.default.svc, namespace: argocd }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }

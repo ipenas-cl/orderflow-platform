@@ -1,0 +1,24 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-probes
+  annotations:
+    policies.kyverno.io/description: Every container needs readiness and liveness probes, or rollouts and failover lie.
+spec:
+  background: true
+  rules:
+    - name: readiness-and-liveness
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaceSelector:
+                matchLabels: { policy.orderflow.dev/enforce: "true" }
+      validate:
+        failureAction: Enforce
+        message: "readinessProbe and livenessProbe are required."
+        pattern:
+          spec:
+            containers:
+              - readinessProbe: {}
+                livenessProbe: {}

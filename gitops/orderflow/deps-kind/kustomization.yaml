@@ -1,0 +1,10 @@
+# In-cluster stand-ins for managed services, used only by the kind overlay.
+# In AWS: Postgres = Aurora Global (terraform/modules/aurora-global),
+# NATS = 3-node JetStream cluster (platform/nats), PSP = real Stripe.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: orderflow
+resources: [postgres.yaml, nats.yaml, payprovider.yaml, devissuer.yaml]
+configMapGenerator:
+  - name: postgres-init
+    files: [init-db.sql]

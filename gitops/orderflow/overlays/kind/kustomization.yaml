@@ -1,0 +1,74 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: orderflow
+resources:
+  - ../../base
+  - ../../deps-kind
+images:
+  - name: ghcr.io/ipenas-cl/orderflow/orders
+    newTag: 0.1.0
+  - name: ghcr.io/ipenas-cl/orderflow/payments
+    newTag: 0.1.0
+  - name: ghcr.io/ipenas-cl/orderflow/inventory
+    newTag: 0.1.0
+  - name: ghcr.io/ipenas-cl/orderflow/fulfillment
+    newTag: 0.1.0
+  - name: ghcr.io/ipenas-cl/orderflow/admin
+    newTag: 0.1.0
+  - name: ghcr.io/ipenas-cl/orderflow/payprovider
+    newTag: 0.1.0
+  - name: ghcr.io/ipenas-cl/orderflow/devissuer
+    newTag: 0.1.0
+patches:
+  - target: { kind: Rollout }
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+  - target: { kind: ScaledObject }
+    patch: |-
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 2
+      - op: replace
+        path: /spec/maxReplicaCount
+        value: 4
+  - target: { kind: HorizontalPodAutoscaler }
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 4
+  - target: { kind: Rollout, name: admin }
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      # env[12] is AUTH_MODE in base/admin/rollout.yaml; "test" fails the build if that ever moves
+      - op: test
+        path: /spec/template/spec/containers/0/env/12/name
+        value: AUTH_MODE
+      - op: replace
+        path: /spec/template/spec/containers/0/env/12/value
+        value: dev
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: OIDC_ISSUER, value: "http://devissuer:9000/" }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: OIDC_JWKS_URL, value: "http://devissuer:9000/.well-known/jwks.json" }
+  - target: { kind: HorizontalPodAutoscaler, name: admin }
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+  - target: { kind: Rollout }
+    patch: |-
+      - op: replace
+        path: /spec/strategy/canary/steps
+        value:
+          - setWeight: 50
+          - pause: { duration: 120s }
+          - setWeight: 100

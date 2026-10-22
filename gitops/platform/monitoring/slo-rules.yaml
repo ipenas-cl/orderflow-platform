@@ -1,0 +1,36 @@
+# SLO recording + multi-window burn-rate alerts (docs/slo.md).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orderflow-slo-rules
+  namespace: monitoring
+data:
+  slo.rules.yml: |
+    groups:
+      - name: orderflow-slo
+        rules:
+          - record: orderflow:availability_errors:ratio_rate5m
+            expr: sum(rate(orderflow_http_requests_total{code=~"5..",route!~".*(healthz|readyz|metrics)"}[5m])) / sum(rate(orderflow_http_requests_total{route!~".*(healthz|readyz|metrics)"}[5m]))
+          - record: orderflow:availability_errors:ratio_rate1h
+            expr: sum(rate(orderflow_http_requests_total{code=~"5..",route!~".*(healthz|readyz|metrics)"}[1h])) / sum(rate(orderflow_http_requests_total{route!~".*(healthz|readyz|metrics)"}[1h]))
+          - record: orderflow:latency_p99:5m
+            expr: histogram_quantile(0.99, sum by (le, service) (rate(orderflow_http_request_duration_seconds_bucket{route!~".*(healthz|readyz|metrics)"}[5m])))
+          - alert: OrderflowErrorBudgetFastBurn
+            expr: orderflow:availability_errors:ratio_rate1h > 14.4 * 0.001 and orderflow:availability_errors:ratio_rate5m > 14.4 * 0.001
+            labels: { severity: page }
+            annotations: { runbook: "https://github.com/ipenas-cl/orderflow-platform/blob/main/docs/runbooks/error-budget-burn.md" }
+          - alert: OrderflowLatencySLO
+            expr: orderflow:latency_p99:5m{service="orders"} > 0.3
+            for: 10m
+            labels: { severity: page }
+            annotations: { runbook: "https://github.com/ipenas-cl/orderflow-platform/blob/main/docs/runbooks/latency.md" }
+          - alert: SagaCompensationSpike
+            expr: sum(rate(orderflow_saga_transitions_total{status="CANCELLED"}[15m])) / sum(rate(orderflow_saga_transitions_total{status="PENDING"}[15m])) > 0.2
+            for: 10m
+            labels: { severity: ticket }
+            annotations: { runbook: "https://github.com/ipenas-cl/orderflow-platform/blob/main/docs/runbooks/saga-compensations.md" }
+          - alert: AuroraReplicationLagHigh
+            expr: aws_rds_aurora_global_db_replication_lag_average > 1000
+            for: 5m
+            labels: { severity: page }
+            annotations: { runbook: "https://github.com/ipenas-cl/orderflow-platform/blob/main/docs/runbooks/region-failover.md" }

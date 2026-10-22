@@ -1,0 +1,39 @@
+# SLO gate for every canary. Queries only the canary's pods (selected by the
+# rollouts-pod-template-hash label that Prometheus copies from the pod), so a
+# bad release is judged on its own traffic, not diluted by the stable pods.
+#   - error ratio (5xx / all, excluding probes)  must stay < 1%  (SLO: 99.9% / 30d,
+#     a canary is allowed a burst well above the budget rate but nowhere near an outage)
+#   - p99 latency of the canary                   must stay < 300ms
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: slo-canary
+spec:
+  args:
+    - name: service
+    - name: canary-hash
+    - name: prometheus
+      value: http://prometheus-server.monitoring.svc.cluster.local
+  metrics:
+    - name: error-ratio
+      interval: 20s
+      count: 9
+      failureLimit: 1
+      successCondition: "isNaN(result[0]) || result[0] < 0.01"
+      provider:
+        prometheus:
+          address: "{{args.prometheus}}"
+          query: |
+            sum(rate(orderflow_http_requests_total{service="{{args.service}}",rollouts_pod_template_hash="{{args.canary-hash}}",code=~"5..",route!~".*(healthz|readyz|metrics)"}[1m]))
+            /
+            sum(rate(orderflow_http_requests_total{service="{{args.service}}",rollouts_pod_template_hash="{{args.canary-hash}}",route!~".*(healthz|readyz|metrics)"}[1m]))
+    - name: p99-latency
+      interval: 20s
+      count: 9
+      failureLimit: 2
+      successCondition: "isNaN(result[0]) || result[0] < 0.3"
+      provider:
+        prometheus:
+          address: "{{args.prometheus}}"
+          query: |
+            histogram_quantile(0.99, sum by (le) (rate(orderflow_http_request_duration_seconds_bucket{service="{{args.service}}",rollouts_pod_template_hash="{{args.canary-hash}}",route!~".*(healthz|readyz|metrics)"}[1m])))

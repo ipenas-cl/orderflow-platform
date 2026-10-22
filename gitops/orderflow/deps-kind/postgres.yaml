@@ -1,0 +1,70 @@
+# Single Postgres. Its password comes from the orderflow-db Secret that
+# proof/up.sh generates at random (never committed). Killing this pod is the
+# "DB failover" game-day scenario: data survives on the PVC, clients reconnect.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  labels: { app.kubernetes.io/name: postgres, app.kubernetes.io/part-of: orderflow-deps }
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector: { matchLabels: { app.kubernetes.io/name: postgres } }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: postgres, app.kubernetes.io/part-of: orderflow-deps }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          args: ["-c", "max_connections=300"]
+          env:
+            - { name: POSTGRES_USER, valueFrom: { secretKeyRef: { name: orderflow-db, key: username } } }
+            - { name: POSTGRES_PASSWORD, valueFrom: { secretKeyRef: { name: orderflow-db, key: password } } }
+            - { name: POSTGRES_DB, value: orderflow }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+          ports: [{ name: pg, containerPort: 5432 }]
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          readinessProbe:
+            exec: { command: [pg_isready, -U, $(POSTGRES_USER), -h, 127.0.0.1] }
+            periodSeconds: 3
+          livenessProbe:
+            exec: { command: [pg_isready, -U, $(POSTGRES_USER), -h, 127.0.0.1] }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+            - { name: run, mountPath: /var/run/postgresql }
+            - { name: tmp, mountPath: /tmp }
+            - { name: init, mountPath: /docker-entrypoint-initdb.d }
+      volumes:
+        - { name: run, emptyDir: {} }
+        - { name: tmp, emptyDir: {} }
+        - { name: init, configMap: { name: postgres-init } }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: { requests: { storage: 1Gi } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  selector: { app.kubernetes.io/name: postgres }
+  ports: [{ name: pg, port: 5432, targetPort: pg }]

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: orderflow
+  labels:
+    policy.orderflow.dev/enforce: "true"
+    pod-security.kubernetes.io/enforce: restricted

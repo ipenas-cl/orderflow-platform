@@ -1,0 +1,36 @@
+# Only images signed by this repo's release workflow (cosign keyless, GitHub
+# OIDC) may run. Enforced in cloud envs; the kind overlay of the proof sets it
+# to Audit because the images are built locally and never leave the box.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-image-signatures
+spec:
+  webhookTimeoutSeconds: 15
+  rules:
+    - name: cosign-keyless
+      match:
+        any:
+          - resources:
+              kinds: [Pod]
+              namespaceSelector:
+                matchLabels: { policy.orderflow.dev/enforce: "true" }
+      verifyImages:
+        - failureAction: Enforce
+          imageReferences: ["ghcr.io/ipenas-cl/orderflow/*"]
+          mutateDigest: true
+          verifyDigest: true
+          required: true
+          attestors:
+            - entries:
+                - keyless:
+                    issuer: https://token.actions.githubusercontent.com
+                    subject: "https://github.com/ipenas-cl/orderflow-platform/.github/workflows/supply-chain.yml@refs/heads/main"
+                    rekor: { url: https://rekor.sigstore.dev }
+          attestations:
+            - type: https://spdx.dev/Document
+              attestors:
+                - entries:
+                    - keyless:
+                        issuer: https://token.actions.githubusercontent.com
+                        subject: "https://github.com/ipenas-cl/orderflow-platform/.github/workflows/supply-chain.yml@refs/heads/main"

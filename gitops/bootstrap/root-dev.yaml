@@ -1,0 +1,17 @@
+# The only thing applied by hand (once per cluster). Everything else is
+# reconciled from git: apps/<env> holds one Application per component.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  finalizers: [resources-finalizer.argocd.argoproj.io]
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ipenas-cl/orderflow-platform.git
+    targetRevision: main
+    path: gitops/apps/dev
+  destination: { server: https://kubernetes.default.svc, namespace: argocd }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
