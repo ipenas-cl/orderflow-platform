@@ -1,0 +1,4 @@
+admissionController: { replicas: 1, container: { resources: { limits: { memory: 384Mi } } } }
+backgroundController: { enabled: true, resources: { limits: { memory: 128Mi } } }
+cleanupController: { enabled: false }
+reportsController: { enabled: true, resources: { limits: { memory: 128Mi } } }

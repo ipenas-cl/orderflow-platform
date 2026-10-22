@@ -1,0 +1,36 @@
+# Serves this repository (mounted read-only into the kind nodes at /repo) over
+# git:// so Argo CD reconciles from real commits without pushing anywhere.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: git-server
+  namespace: argocd
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: git-server } }
+  template:
+    metadata: { labels: { app: git-server } }
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: git
+          image: alpine/git:2.47.2
+          imagePullPolicy: IfNotPresent
+          command: [sh, -c]
+          args:
+            - git config --global --add safe.directory '*' &&
+              exec git daemon --reuseaddr --export-all --base-path=/ --listen=0.0.0.0 --port=9418 /repo
+          ports: [{ containerPort: 9418 }]
+          resources: { requests: { cpu: 10m, memory: 16Mi }, limits: { memory: 64Mi } }
+          readinessProbe: { tcpSocket: { port: 9418 } }
+          volumeMounts: [{ name: repo, mountPath: /repo, readOnly: true }]
+      volumes:
+        - name: repo
+          hostPath: { path: /repo, type: Directory }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: git-server, namespace: argocd }
+spec:
+  selector: { app: git-server }
+  ports: [{ port: 9418, targetPort: 9418 }]

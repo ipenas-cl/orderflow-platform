@@ -1,0 +1,9 @@
+# Minimal Argo CD: no dex/notifications/applicationset, single replicas.
+dex: { enabled: false }
+notifications: { enabled: false }
+applicationSet: { replicas: 0 }
+redis: { resources: { limits: { memory: 128Mi } } }
+configs:
+  params: { server.insecure: true }
+  cm:
+    timeout.reconciliation: 30s

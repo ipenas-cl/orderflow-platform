@@ -1,0 +1,20 @@
+# Minimal Prometheus for the proof: server + kube-state-metrics only.
+alertmanager: { enabled: false }
+prometheus-pushgateway: { enabled: false }
+prometheus-node-exporter: { enabled: false }
+server:
+  global: { scrape_interval: 10s, evaluation_interval: 10s }
+  retention: 6h
+  persistentVolume: { enabled: false }
+  resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 1Gi } }
+kube-state-metrics:
+  resources: { requests: { cpu: 10m, memory: 32Mi }, limits: { memory: 128Mi } }
+serverFiles:
+  recording_rules.yml:
+    groups:
+      - name: orderflow-slo
+        rules:
+          - record: orderflow:availability_errors:ratio_rate1m
+            expr: sum(rate(orderflow_http_requests_total{code=~"5..",route!~".*(healthz|readyz|metrics)"}[1m])) / sum(rate(orderflow_http_requests_total{route!~".*(healthz|readyz|metrics)"}[1m]))
+          - record: orderflow:latency_p99:1m
+            expr: histogram_quantile(0.99, sum by (le, service) (rate(orderflow_http_request_duration_seconds_bucket{route!~".*(healthz|readyz|metrics)"}[1m])))

@@ -1,0 +1,6 @@
+chaosDaemon:
+  runtime: containerd
+  socketPath: /run/containerd/containerd.sock
+dashboard: { create: false }
+dnsServer: { create: false }
+controllerManager: { replicaCount: 1, leaderElection: { enabled: false } }
