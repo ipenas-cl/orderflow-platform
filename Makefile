@@ -2,12 +2,19 @@ SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := help
 CLUSTER ?= orderflow
 STEADY  ?= 7m
+ORDERFLOW_DIR ?= ../orderflow
 TF_DIRS := terraform/bootstrap terraform/envs/dev terraform/envs/staging terraform/envs/prod
 
 help: ## list targets
-	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
+	@grep -hE '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
 
 prove: up run collect ## full proof: cluster + add-ons + orderflow + k6 + chaos + canary, then report
+
+images: ## build the orderflow images at the pinned ref (clones ipenas-cl/orderflow into $(ORDERFLOW_DIR) if missing)
+	@test -d $(ORDERFLOW_DIR) || git clone -q https://github.com/ipenas-cl/orderflow $(ORDERFLOW_DIR)
+	git -C $(ORDERFLOW_DIR) fetch -q origin && git -C $(ORDERFLOW_DIR) -c advice.detachedHead=false checkout -q $$(tr -d '[:space:]' < release/orderflow.ref)
+	cd $(ORDERFLOW_DIR) && for s in orders payments inventory fulfillment payprovider devissuer; do docker build -q --build-arg SERVICE=$$s -t orderflow-$$s:latest . || exit 1; done && docker build -q -f Dockerfile.admin -t orderflow-admin:latest .
+	docker pull -q postgres:16-alpine && docker pull -q nats:2.10-alpine
 
 up: ## kind cluster, add-ons, Argo CD sync of orderflow
 	proof/up.sh
@@ -34,7 +41,8 @@ tf-lint: ## terraform fmt/validate, tflint, checkov
 	@for d in terraform/modules/* $(TF_DIRS); do tflint --chdir=$$d --config=$(CURDIR)/terraform/.tflint.hcl || exit 1; done
 	checkov -d terraform --framework terraform --config-file .checkov.yaml
 
-k8s-lint: ## render every overlay and app-of-apps
+k8s-lint: ## render every overlay and app-of-apps, check pod templates against Kyverno policies
 	@for d in gitops/orderflow/overlays/* gitops/apps/* gitops/platform/kyverno-policies*; do kustomize build $$d >/dev/null && echo "ok  $$d" || exit 1; done
+	@for o in kind dev staging prod; do scripts/policy-check.sh gitops/orderflow/overlays/$$o || exit 1; done
 
-.PHONY: help prove up run collect down cost lint tf-lint k8s-lint
+.PHONY: images help prove up run collect down cost lint tf-lint k8s-lint

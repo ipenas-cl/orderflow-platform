@@ -1,0 +1,525 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "argoproj.io/v1alpha1",
+            "kind": "AnalysisRun",
+            "metadata": {
+                "annotations": {
+                    "rollout.argoproj.io/revision": "2"
+                },
+                "creationTimestamp": "2026-10-22T15:12:18Z",
+                "generation": 6,
+                "labels": {
+                    "app.kubernetes.io/name": "payments",
+                    "rollout-type": "Background",
+                    "rollouts-pod-template-hash": "6b4546dcd6"
+                },
+                "name": "payments-6b4546dcd6-2",
+                "namespace": "orderflow",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "argoproj.io/v1alpha1",
+                        "blockOwnerDeletion": true,
+                        "controller": true,
+                        "kind": "Rollout",
+                        "name": "payments",
+                        "uid": "da67f8c9-b9c8-40f7-b96f-7cd86bfcf77b"
+                    }
+                ],
+                "resourceVersion": "11664",
+                "uid": "051ecfaf-f5fb-4840-bb54-4601a7cfc9c6"
+            },
+            "spec": {
+                "args": [
+                    {
+                        "name": "service",
+                        "value": "payments"
+                    },
+                    {
+                        "name": "canary-hash",
+                        "value": "6b4546dcd6"
+                    },
+                    {
+                        "name": "prometheus",
+                        "value": "http://prometheus-server.monitoring.svc.cluster.local"
+                    }
+                ],
+                "metrics": [
+                    {
+                        "count": 9,
+                        "failureLimit": 1,
+                        "interval": "20s",
+                        "name": "error-ratio",
+                        "provider": {
+                            "prometheus": {
+                                "address": "{{args.prometheus}}",
+                                "authentication": {
+                                    "oauth2": {},
+                                    "sigv4": {}
+                                },
+                                "query": "sum(rate(orderflow_http_requests_total{service=\"{{args.service}}\",rollouts_pod_template_hash=\"{{args.canary-hash}}\",code=~\"5..\",route!~\".*(healthz|readyz|metrics)\"}[1m]))\n/\nsum(rate(orderflow_http_requests_total{service=\"{{args.service}}\",rollouts_pod_template_hash=\"{{args.canary-hash}}\",route!~\".*(healthz|readyz|metrics)\"}[1m]))\n"
+                            }
+                        },
+                        "successCondition": "isNaN(result[0]) || result[0] \u003c 0.01"
+                    },
+                    {
+                        "count": 9,
+                        "failureLimit": 2,
+                        "interval": "20s",
+                        "name": "p99-latency",
+                        "provider": {
+                            "prometheus": {
+                                "address": "{{args.prometheus}}",
+                                "authentication": {
+                                    "oauth2": {},
+                                    "sigv4": {}
+                                },
+                                "query": "histogram_quantile(0.99, sum by (le) (rate(orderflow_http_request_duration_seconds_bucket{service=\"{{args.service}}\",rollouts_pod_template_hash=\"{{args.canary-hash}}\",route!~\".*(healthz|readyz|metrics)\"}[1m])))\n"
+                            }
+                        },
+                        "successCondition": "isNaN(result[0]) || result[0] \u003c 0.3"
+                    }
+                ]
+            },
+            "status": {
+                "completedAt": "2026-10-22T15:12:58Z",
+                "dryRunSummary": {},
+                "message": "Metric \"error-ratio\" assessed Failed due to failed (2) \u003e failureLimit (1)",
+                "metricResults": [
+                    {
+                        "count": 2,
+                        "error": 2,
+                        "failed": 2,
+                        "measurements": [
+                            {
+                                "finishedAt": "2026-10-22T15:12:18Z",
+                                "message": "could not evaluate successCondition \"isNaN(result[0]) || result[0] \u003c 0.3\": metric result is nil or empty: no data returned from the metric provider",
+                                "phase": "Error",
+                                "startedAt": "2026-10-22T15:12:18Z"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:12:28Z",
+                                "message": "could not evaluate successCondition \"isNaN(result[0]) || result[0] \u003c 0.3\": metric result is nil or empty: no data returned from the metric provider",
+                                "phase": "Error",
+                                "startedAt": "2026-10-22T15:12:28Z"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:12:38Z",
+                                "phase": "Failed",
+                                "startedAt": "2026-10-22T15:12:38Z",
+                                "value": "[4.1664767013074115]"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:12:58Z",
+                                "phase": "Failed",
+                                "startedAt": "2026-10-22T15:12:58Z",
+                                "value": "[2.6570372916308846]"
+                            }
+                        ],
+                        "metadata": {
+                            "ResolvedPrometheusQuery": "histogram_quantile(0.99, sum by (le) (rate(orderflow_http_request_duration_seconds_bucket{service=\"payments\",rollouts_pod_template_hash=\"6b4546dcd6\",route!~\".*(healthz|readyz|metrics)\"}[1m])))\n"
+                        },
+                        "name": "p99-latency",
+                        "phase": "Successful"
+                    },
+                    {
+                        "count": 2,
+                        "error": 2,
+                        "failed": 2,
+                        "measurements": [
+                            {
+                                "finishedAt": "2026-10-22T15:12:18Z",
+                                "message": "could not evaluate successCondition \"isNaN(result[0]) || result[0] \u003c 0.01\": metric result is nil or empty: no data returned from the metric provider",
+                                "phase": "Error",
+                                "startedAt": "2026-10-22T15:12:18Z"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:12:28Z",
+                                "message": "could not evaluate successCondition \"isNaN(result[0]) || result[0] \u003c 0.01\": metric result is nil or empty: no data returned from the metric provider",
+                                "phase": "Error",
+                                "startedAt": "2026-10-22T15:12:28Z"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:12:38Z",
+                                "phase": "Failed",
+                                "startedAt": "2026-10-22T15:12:38Z",
+                                "value": "[1]"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:12:58Z",
+                                "phase": "Failed",
+                                "startedAt": "2026-10-22T15:12:58Z",
+                                "value": "[1]"
+                            }
+                        ],
+                        "metadata": {
+                            "ResolvedPrometheusQuery": "sum(rate(orderflow_http_requests_total{service=\"payments\",rollouts_pod_template_hash=\"6b4546dcd6\",code=~\"5..\",route!~\".*(healthz|readyz|metrics)\"}[1m]))\n/\nsum(rate(orderflow_http_requests_total{service=\"payments\",rollouts_pod_template_hash=\"6b4546dcd6\",route!~\".*(healthz|readyz|metrics)\"}[1m]))\n"
+                        },
+                        "name": "error-ratio",
+                        "phase": "Failed"
+                    }
+                ],
+                "phase": "Failed",
+                "runSummary": {
+                    "count": 2,
+                    "failed": 1,
+                    "successful": 1
+                },
+                "startedAt": "2026-10-22T15:12:18Z"
+            }
+        },
+        {
+            "apiVersion": "argoproj.io/v1alpha1",
+            "kind": "AnalysisRun",
+            "metadata": {
+                "annotations": {
+                    "rollout.argoproj.io/revision": "4"
+                },
+                "creationTimestamp": "2026-10-22T15:27:34Z",
+                "generation": 7,
+                "labels": {
+                    "app.kubernetes.io/name": "payments",
+                    "rollout-type": "Background",
+                    "rollouts-pod-template-hash": "6b4546dcd6"
+                },
+                "name": "payments-6b4546dcd6-4",
+                "namespace": "orderflow",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "argoproj.io/v1alpha1",
+                        "blockOwnerDeletion": true,
+                        "controller": true,
+                        "kind": "Rollout",
+                        "name": "payments",
+                        "uid": "da67f8c9-b9c8-40f7-b96f-7cd86bfcf77b"
+                    }
+                ],
+                "resourceVersion": "17293",
+                "uid": "49023410-f107-49b8-98f5-d4f3f2a109fa"
+            },
+            "spec": {
+                "args": [
+                    {
+                        "name": "service",
+                        "value": "payments"
+                    },
+                    {
+                        "name": "canary-hash",
+                        "value": "6b4546dcd6"
+                    },
+                    {
+                        "name": "prometheus",
+                        "value": "http://prometheus-server.monitoring.svc.cluster.local"
+                    }
+                ],
+                "metrics": [
+                    {
+                        "count": 9,
+                        "failureLimit": 1,
+                        "interval": "20s",
+                        "name": "error-ratio",
+                        "provider": {
+                            "prometheus": {
+                                "address": "{{args.prometheus}}",
+                                "authentication": {
+                                    "oauth2": {},
+                                    "sigv4": {}
+                                },
+                                "query": "sum(rate(orderflow_http_requests_total{service=\"{{args.service}}\",rollouts_pod_template_hash=\"{{args.canary-hash}}\",code=~\"5..\",route!~\".*(healthz|readyz|metrics)\"}[1m]))\n/\nsum(rate(orderflow_http_requests_total{service=\"{{args.service}}\",rollouts_pod_template_hash=\"{{args.canary-hash}}\",route!~\".*(healthz|readyz|metrics)\"}[1m]))\n"
+                            }
+                        },
+                        "successCondition": "isNaN(result[0]) || result[0] \u003c 0.01"
+                    },
+                    {
+                        "count": 9,
+                        "failureLimit": 2,
+                        "interval": "20s",
+                        "name": "p99-latency",
+                        "provider": {
+                            "prometheus": {
+                                "address": "{{args.prometheus}}",
+                                "authentication": {
+                                    "oauth2": {},
+                                    "sigv4": {}
+                                },
+                                "query": "histogram_quantile(0.99, sum by (le) (rate(orderflow_http_request_duration_seconds_bucket{service=\"{{args.service}}\",rollouts_pod_template_hash=\"{{args.canary-hash}}\",route!~\".*(healthz|readyz|metrics)\"}[1m])))\n"
+                            }
+                        },
+                        "successCondition": "isNaN(result[0]) || result[0] \u003c 0.3"
+                    }
+                ]
+            },
+            "status": {
+                "completedAt": "2026-10-22T15:28:24Z",
+                "dryRunSummary": {},
+                "message": "Metric \"error-ratio\" assessed Failed due to failed (2) \u003e failureLimit (1)",
+                "metricResults": [
+                    {
+                        "count": 2,
+                        "error": 3,
+                        "failed": 2,
+                        "measurements": [
+                            {
+                                "finishedAt": "2026-10-22T15:27:34Z",
+                                "message": "could not evaluate successCondition \"isNaN(result[0]) || result[0] \u003c 0.3\": metric result is nil or empty: no data returned from the metric provider",
+                                "phase": "Error",
+                                "startedAt": "2026-10-22T15:27:34Z"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:27:44Z",
+                                "message": "could not evaluate successCondition \"isNaN(result[0]) || result[0] \u003c 0.3\": metric result is nil or empty: no data returned from the metric provider",
+                                "phase": "Error",
+                                "startedAt": "2026-10-22T15:27:44Z"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:27:54Z",
+                                "message": "could not evaluate successCondition \"isNaN(result[0]) || result[0] \u003c 0.3\": metric result is nil or empty: no data returned from the metric provider",
+                                "phase": "Error",
+                                "startedAt": "2026-10-22T15:27:54Z"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:28:04Z",
+                                "phase": "Failed",
+                                "startedAt": "2026-10-22T15:28:04Z",
+                                "value": "[0.9000000000000004]"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:28:24Z",
+                                "phase": "Failed",
+                                "startedAt": "2026-10-22T15:28:24Z",
+                                "value": "[0.9016666666666666]"
+                            }
+                        ],
+                        "metadata": {
+                            "ResolvedPrometheusQuery": "histogram_quantile(0.99, sum by (le) (rate(orderflow_http_request_duration_seconds_bucket{service=\"payments\",rollouts_pod_template_hash=\"6b4546dcd6\",route!~\".*(healthz|readyz|metrics)\"}[1m])))\n"
+                        },
+                        "name": "p99-latency",
+                        "phase": "Successful"
+                    },
+                    {
+                        "count": 2,
+                        "error": 3,
+                        "failed": 2,
+                        "measurements": [
+                            {
+                                "finishedAt": "2026-10-22T15:27:34Z",
+                                "message": "could not evaluate successCondition \"isNaN(result[0]) || result[0] \u003c 0.01\": metric result is nil or empty: no data returned from the metric provider",
+                                "phase": "Error",
+                                "startedAt": "2026-10-22T15:27:34Z"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:27:44Z",
+                                "message": "could not evaluate successCondition \"isNaN(result[0]) || result[0] \u003c 0.01\": metric result is nil or empty: no data returned from the metric provider",
+                                "phase": "Error",
+                                "startedAt": "2026-10-22T15:27:44Z"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:27:54Z",
+                                "message": "could not evaluate successCondition \"isNaN(result[0]) || result[0] \u003c 0.01\": metric result is nil or empty: no data returned from the metric provider",
+                                "phase": "Error",
+                                "startedAt": "2026-10-22T15:27:54Z"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:28:04Z",
+                                "phase": "Failed",
+                                "startedAt": "2026-10-22T15:28:04Z",
+                                "value": "[1]"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:28:24Z",
+                                "phase": "Failed",
+                                "startedAt": "2026-10-22T15:28:24Z",
+                                "value": "[1]"
+                            }
+                        ],
+                        "metadata": {
+                            "ResolvedPrometheusQuery": "sum(rate(orderflow_http_requests_total{service=\"payments\",rollouts_pod_template_hash=\"6b4546dcd6\",code=~\"5..\",route!~\".*(healthz|readyz|metrics)\"}[1m]))\n/\nsum(rate(orderflow_http_requests_total{service=\"payments\",rollouts_pod_template_hash=\"6b4546dcd6\",route!~\".*(healthz|readyz|metrics)\"}[1m]))\n"
+                        },
+                        "name": "error-ratio",
+                        "phase": "Failed"
+                    }
+                ],
+                "phase": "Failed",
+                "runSummary": {
+                    "count": 2,
+                    "failed": 1,
+                    "successful": 1
+                },
+                "startedAt": "2026-10-22T15:27:34Z"
+            }
+        },
+        {
+            "apiVersion": "argoproj.io/v1alpha1",
+            "kind": "AnalysisRun",
+            "metadata": {
+                "annotations": {
+                    "rollout.argoproj.io/revision": "6"
+                },
+                "creationTimestamp": "2026-10-22T15:51:43Z",
+                "generation": 6,
+                "labels": {
+                    "app.kubernetes.io/name": "payments",
+                    "rollout-type": "Background",
+                    "rollouts-pod-template-hash": "6b4546dcd6"
+                },
+                "name": "payments-6b4546dcd6-6",
+                "namespace": "orderflow",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "argoproj.io/v1alpha1",
+                        "blockOwnerDeletion": true,
+                        "controller": true,
+                        "kind": "Rollout",
+                        "name": "payments",
+                        "uid": "da67f8c9-b9c8-40f7-b96f-7cd86bfcf77b"
+                    }
+                ],
+                "resourceVersion": "23511",
+                "uid": "73e1b5ec-0328-48c7-bddd-c6a5a1e59208"
+            },
+            "spec": {
+                "args": [
+                    {
+                        "name": "service",
+                        "value": "payments"
+                    },
+                    {
+                        "name": "canary-hash",
+                        "value": "6b4546dcd6"
+                    },
+                    {
+                        "name": "prometheus",
+                        "value": "http://prometheus-server.monitoring.svc.cluster.local"
+                    }
+                ],
+                "metrics": [
+                    {
+                        "count": 9,
+                        "failureLimit": 1,
+                        "interval": "20s",
+                        "name": "error-ratio",
+                        "provider": {
+                            "prometheus": {
+                                "address": "{{args.prometheus}}",
+                                "authentication": {
+                                    "oauth2": {},
+                                    "sigv4": {}
+                                },
+                                "query": "sum(rate(orderflow_http_requests_total{service=\"{{args.service}}\",rollouts_pod_template_hash=\"{{args.canary-hash}}\",code=~\"5..\",route!~\".*(healthz|readyz|metrics)\"}[1m]))\n/\nsum(rate(orderflow_http_requests_total{service=\"{{args.service}}\",rollouts_pod_template_hash=\"{{args.canary-hash}}\",route!~\".*(healthz|readyz|metrics)\"}[1m]))\n"
+                            }
+                        },
+                        "successCondition": "isNaN(result[0]) || result[0] \u003c 0.01"
+                    },
+                    {
+                        "count": 9,
+                        "failureLimit": 2,
+                        "interval": "20s",
+                        "name": "p99-latency",
+                        "provider": {
+                            "prometheus": {
+                                "address": "{{args.prometheus}}",
+                                "authentication": {
+                                    "oauth2": {},
+                                    "sigv4": {}
+                                },
+                                "query": "histogram_quantile(0.99, sum by (le) (rate(orderflow_http_request_duration_seconds_bucket{service=\"{{args.service}}\",rollouts_pod_template_hash=\"{{args.canary-hash}}\",route!~\".*(healthz|readyz|metrics)\"}[1m])))\n"
+                            }
+                        },
+                        "successCondition": "isNaN(result[0]) || result[0] \u003c 0.3"
+                    }
+                ]
+            },
+            "status": {
+                "completedAt": "2026-10-22T15:52:23Z",
+                "dryRunSummary": {},
+                "message": "Metric \"error-ratio\" assessed Failed due to failed (2) \u003e failureLimit (1)",
+                "metricResults": [
+                    {
+                        "count": 2,
+                        "error": 2,
+                        "failed": 2,
+                        "measurements": [
+                            {
+                                "finishedAt": "2026-10-22T15:51:43Z",
+                                "message": "could not evaluate successCondition \"isNaN(result[0]) || result[0] \u003c 0.01\": metric result is nil or empty: no data returned from the metric provider",
+                                "phase": "Error",
+                                "startedAt": "2026-10-22T15:51:43Z"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:51:53Z",
+                                "message": "could not evaluate successCondition \"isNaN(result[0]) || result[0] \u003c 0.01\": metric result is nil or empty: no data returned from the metric provider",
+                                "phase": "Error",
+                                "startedAt": "2026-10-22T15:51:53Z"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:52:03Z",
+                                "phase": "Failed",
+                                "startedAt": "2026-10-22T15:52:03Z",
+                                "value": "[1]"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:52:23Z",
+                                "phase": "Failed",
+                                "startedAt": "2026-10-22T15:52:23Z",
+                                "value": "[1]"
+                            }
+                        ],
+                        "metadata": {
+                            "ResolvedPrometheusQuery": "sum(rate(orderflow_http_requests_total{service=\"payments\",rollouts_pod_template_hash=\"6b4546dcd6\",code=~\"5..\",route!~\".*(healthz|readyz|metrics)\"}[1m]))\n/\nsum(rate(orderflow_http_requests_total{service=\"payments\",rollouts_pod_template_hash=\"6b4546dcd6\",route!~\".*(healthz|readyz|metrics)\"}[1m]))\n"
+                        },
+                        "name": "error-ratio",
+                        "phase": "Failed"
+                    },
+                    {
+                        "count": 2,
+                        "error": 2,
+                        "failed": 2,
+                        "measurements": [
+                            {
+                                "finishedAt": "2026-10-22T15:51:43Z",
+                                "message": "could not evaluate successCondition \"isNaN(result[0]) || result[0] \u003c 0.3\": metric result is nil or empty: no data returned from the metric provider",
+                                "phase": "Error",
+                                "startedAt": "2026-10-22T15:51:43Z"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:51:53Z",
+                                "message": "could not evaluate successCondition \"isNaN(result[0]) || result[0] \u003c 0.3\": metric result is nil or empty: no data returned from the metric provider",
+                                "phase": "Error",
+                                "startedAt": "2026-10-22T15:51:53Z"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:52:03Z",
+                                "phase": "Failed",
+                                "startedAt": "2026-10-22T15:52:03Z",
+                                "value": "[2.1317424999999997]"
+                            },
+                            {
+                                "finishedAt": "2026-10-22T15:52:23Z",
+                                "phase": "Failed",
+                                "startedAt": "2026-10-22T15:52:23Z",
+                                "value": "[1.6172980000000066]"
+                            }
+                        ],
+                        "metadata": {
+                            "ResolvedPrometheusQuery": "histogram_quantile(0.99, sum by (le) (rate(orderflow_http_request_duration_seconds_bucket{service=\"payments\",rollouts_pod_template_hash=\"6b4546dcd6\",route!~\".*(healthz|readyz|metrics)\"}[1m])))\n"
+                        },
+                        "name": "p99-latency",
+                        "phase": "Successful"
+                    }
+                ],
+                "phase": "Failed",
+                "runSummary": {
+                    "count": 2,
+                    "failed": 1,
+                    "successful": 1
+                },
+                "startedAt": "2026-10-22T15:51:43Z"
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

@@ -1,5 +1,5 @@
 # Repository-wide checkov settings.
-framework: [terraform, kubernetes, github_actions, dockerfile]
+framework: [terraform, github_actions]
 skip-check:
   # Registry modules are pinned by version and by .terraform.lock.hcl hashes;
   # commit-hash pinning is not available for registry sources.

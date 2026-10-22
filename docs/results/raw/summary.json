@@ -1,0 +1,191 @@
+{
+ "availability": 0.9990587298970085,
+ "errors": 10.147221726648432,
+ "total": 10780.350607545319,
+ "edge_availability": 0.9988201900709995,
+ "p99_orders_s": 0.017135364855792142,
+ "p99_payments_s": 0.49524132759988054,
+ "latency_windows_ok": 0.8604651162790697,
+ "saga": {
+  "PAID": 8127.023511201464,
+  "PENDING": 8590.57860471667,
+  "STOCK_RESERVED": 8561.604179181426,
+  "CANCELLED": 431.24693029002583,
+  "DELIVERED": 2486.479476514505,
+  "SHIPPED": 2507.9837099296524
+ },
+ "events": [
+  {
+   "t": 1792683389,
+   "event": "policy_root_pod_rejected",
+   "detail": "Error from server (Forbidden): error when creating \"proof/manifests/root-pod.yaml\": pods \"policy-violation\" is forbidden: violates PodSecurity \"restricted:latest\": allowPrivilegeEscalation != false (container \"c\" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container \"c\" must set securityContext.capabilities.drop=[\"ALL\"]), runAsNonRoot != true (pod or container \"c\" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container \"c\" must set securityContext.seccompProfile.type to \"RuntimeDefault\" or \"Localhost\")"
+  },
+  {
+   "t": 1792683389,
+   "event": "policy_no_probes_pod_rejected",
+   "detail": "Error from server: error when creating \"proof/manifests/no-probes-pod.yaml\": admission webhook \"validate.kyverno.svc-fail\" denied the request: \n\nresource Pod/orderflow/policy-violation-kyverno was blocked due to the following policies \n\nrequire-probes:\n  readiness-and-liveness: 'validation error: readinessProbe and livenessProbe are required. rule readiness-and-liveness failed at path /spec/containers/0/livenessProbe/'\nrequire-requests-limits:\n  requests-and-limits: 'validation error: cpu/memory requests and a memory limit are required. rule requests-and-limits failed at path /spec/containers/0/resources/limits/'"
+  },
+  {
+   "t": 1792683389,
+   "event": "stock_seeded",
+   "detail": null
+  },
+  {
+   "t": 1792683389,
+   "event": "gameday_start",
+   "detail": null
+  },
+  {
+   "t": 1792683479,
+   "event": "chaos_payments_pod_kill",
+   "detail": null
+  },
+  {
+   "t": 1792683539,
+   "event": "chaos_payments_latency_start",
+   "detail": null
+  },
+  {
+   "t": 1792683550,
+   "event": "networkchaos_not_injected",
+   "detail": "Not Injected/Wait"
+  },
+  {
+   "t": 1792683552,
+   "event": "chaos_psp_latency_start",
+   "detail": "{\"failure_rate\":0.02,\"decline_rate\":0.05,\"latency_ms\":300,\"jitter_ms\":100,\"outage\":false}"
+  },
+  {
+   "t": 1792683612,
+   "event": "chaos_payments_latency_end",
+   "detail": null
+  },
+  {
+   "t": 1792683612,
+   "event": "chaos_nats_outage_start",
+   "detail": null
+  },
+  {
+   "t": 1792683662,
+   "event": "chaos_nats_outage_end",
+   "detail": null
+  },
+  {
+   "t": 1792683702,
+   "event": "chaos_db_failover_start",
+   "detail": null
+  },
+  {
+   "t": 1792683703,
+   "event": "db_writable",
+   "detail": 1.2
+  },
+  {
+   "t": 1792683801,
+   "event": "services_recovered",
+   "detail": {
+    "db_writable_s": 1.2,
+    "app_pods": 16,
+    "min_ready": 9,
+    "all_ready_after_s": 97.6
+   }
+  },
+  {
+   "t": 1792684243,
+   "event": "gameday_end",
+   "detail": null
+  },
+  {
+   "t": 1792684294,
+   "event": "bad_release_promoted",
+   "detail": null
+  },
+  {
+   "t": 1792684344,
+   "event": "canary_aborted",
+   "detail": "RolloutAborted: Rollout aborted update to revision 6: Background analysis phase error/failed: Metric \"error-ratio\" assessed Failed due to failed (2) > failureLimit (1)"
+  },
+  {
+   "t": 1792684355,
+   "event": "release_reverted",
+   "detail": null
+  }
+ ],
+ "rescale": [
+  [
+   "2026-10-22T15:39:17Z",
+   "keda-hpa-payments",
+   "New size: 4; reason: external metric s0-nats-jetstream-ORDERFLOW(&LabelSelector{MatchLabels:map[string]string{scaledobject.keda.sh/name: payments,},MatchExpressions:[]LabelSelectorRequirement{},}) above target"
+  ],
+  [
+   "2026-10-22T15:41:17Z",
+   "keda-hpa-fulfillment",
+   "New size: 4; reason: external metric s0-nats-jetstream-ORDERFLOW(&LabelSelector{MatchLabels:map[string]string{scaledobject.keda.sh/name: fulfillment,},MatchExpressions:[]LabelSelectorRequirement{},}) above target"
+  ],
+  [
+   "2026-10-22T15:41:31Z",
+   "orders",
+   "New size: 4; reason: cpu resource utilization (percentage of request) above target"
+  ],
+  [
+   "2026-10-22T15:41:32Z",
+   "keda-hpa-inventory",
+   "New size: 3; reason: cpu resource utilization (percentage of request) above target"
+  ],
+  [
+   "2026-10-22T15:42:01Z",
+   "orders",
+   "New size: 3; reason: cpu resource utilization (percentage of request) above target"
+  ]
+ ],
+ "analysis": [
+  [
+   "payments-6b4546dcd6-2",
+   "p99-latency",
+   "Successful",
+   0,
+   2,
+   "[2.6570372916308846]"
+  ],
+  [
+   "payments-6b4546dcd6-2",
+   "error-ratio",
+   "Failed",
+   0,
+   2,
+   "[1]"
+  ],
+  [
+   "payments-6b4546dcd6-4",
+   "p99-latency",
+   "Successful",
+   0,
+   2,
+   "[0.9016666666666666]"
+  ],
+  [
+   "payments-6b4546dcd6-4",
+   "error-ratio",
+   "Failed",
+   0,
+   2,
+   "[1]"
+  ],
+  [
+   "payments-6b4546dcd6-6",
+   "error-ratio",
+   "Failed",
+   0,
+   2,
+   "[1]"
+  ],
+  [
+   "payments-6b4546dcd6-6",
+   "p99-latency",
+   "Successful",
+   0,
+   2,
+   "[1.6172980000000066]"
+  ]
+ ]
+}

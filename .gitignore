@@ -5,3 +5,4 @@
 .infracost/
 /tmp/
 proof/.out/
+__pycache__/

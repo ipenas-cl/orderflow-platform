@@ -1,13 +1,13 @@
 # Build -> SBOM -> scan -> sign -> promote by GitOps PR.
-# Images come from the application repo (ipenas-cl/orderflow) at a pinned ref;
-# this repo owns how they reach production.
+# Images come from the application repo (ipenas-cl/orderflow) at the commit
+# pinned in release/orderflow.ref. Changing that file is itself a reviewed PR,
+# so the build has no free-form inputs (SLSA: build is defined by the source).
 name: supply-chain
 on:
-  workflow_dispatch:
-    inputs:
-      ref: { description: "orderflow git ref to release", required: true, default: main }
-  repository_dispatch:
-    types: [orderflow-release]
+  push:
+    branches: [main]
+    paths: [release/orderflow.ref]
+  workflow_dispatch: {}
 permissions: { contents: read }
 env:
   REGISTRY: ghcr.io/ipenas-cl/orderflow
@@ -27,9 +27,13 @@ jobs:
       tag: ${{ steps.meta.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+        with: { path: platform, sparse-checkout: release }
+      - id: ref
+        run: echo "sha=$(tr -d '[:space:]' < platform/release/orderflow.ref)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
         with:
           repository: ipenas-cl/orderflow
-          ref: ${{ inputs.ref || github.event.client_payload.ref }}
+          ref: ${{ steps.ref.outputs.sha }}
       - id: meta
         run: echo "tag=sha-$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3

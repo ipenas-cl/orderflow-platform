@@ -1,0 +1,18 @@
+{"t":1792683389,"event":"policy_root_pod_rejected","detail":"Error from server (Forbidden): error when creating \"proof/manifests/root-pod.yaml\": pods \"policy-violation\" is forbidden: violates PodSecurity \"restricted:latest\": allowPrivilegeEscalation != false (container \"c\" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container \"c\" must set securityContext.capabilities.drop=[\"ALL\"]), runAsNonRoot != true (pod or container \"c\" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container \"c\" must set securityContext.seccompProfile.type to \"RuntimeDefault\" or \"Localhost\")"}
+{"t":1792683389,"event":"policy_no_probes_pod_rejected","detail":"Error from server: error when creating \"proof/manifests/no-probes-pod.yaml\": admission webhook \"validate.kyverno.svc-fail\" denied the request: \n\nresource Pod/orderflow/policy-violation-kyverno was blocked due to the following policies \n\nrequire-probes:\n  readiness-and-liveness: 'validation error: readinessProbe and livenessProbe are required. rule readiness-and-liveness failed at path /spec/containers/0/livenessProbe/'\nrequire-requests-limits:\n  requests-and-limits: 'validation error: cpu/memory requests and a memory limit are required. rule requests-and-limits failed at path /spec/containers/0/resources/limits/'"}
+{"t":1792683389,"event":"stock_seeded","detail":null}
+{"t":1792683389,"event":"gameday_start","detail":null}
+{"t":1792683479,"event":"chaos_payments_pod_kill","detail":null}
+{"t":1792683539,"event":"chaos_payments_latency_start","detail":null}
+{"t":1792683550,"event":"networkchaos_not_injected","detail":"Not Injected/Wait"}
+{"t":1792683552,"event":"chaos_psp_latency_start","detail":"{\"failure_rate\":0.02,\"decline_rate\":0.05,\"latency_ms\":300,\"jitter_ms\":100,\"outage\":false}"}
+{"t":1792683612,"event":"chaos_payments_latency_end","detail":null}
+{"t":1792683612,"event":"chaos_nats_outage_start","detail":null}
+{"t":1792683662,"event":"chaos_nats_outage_end","detail":null}
+{"t":1792683702,"event":"chaos_db_failover_start","detail":null}
+{"t":1792683703,"event":"db_writable","detail":1.2}
+{"t":1792683801,"event":"services_recovered","detail":{"db_writable_s": 1.2, "app_pods": 16, "min_ready": 9, "all_ready_after_s": 97.6}}
+{"t":1792684243,"event":"gameday_end","detail":null}
+{"t":1792684294,"event":"bad_release_promoted","detail":null}
+{"t":1792684344,"event":"canary_aborted","detail":"RolloutAborted: Rollout aborted update to revision 6: Background analysis phase error/failed: Metric \"error-ratio\" assessed Failed due to failed (2) > failureLimit (1)"}
+{"t":1792684355,"event":"release_reverted","detail":null}

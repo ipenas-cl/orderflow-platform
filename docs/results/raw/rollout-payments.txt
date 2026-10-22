@@ -1,0 +1,30 @@
+Name:            payments
+Namespace:       orderflow
+Status:          ✖ Degraded
+Message:         RolloutAborted: Rollout aborted update to revision 6: Background analysis phase error/failed: Metric "error-ratio" assessed Failed due to failed (2) > failureLimit (1)
+Strategy:        Canary
+  Step:          0/3
+  SetWeight:     0
+  ActualWeight:  50
+Images:          ghcr.io/ipenas-cl/orderflow/payments:0.1.0 (canary, stable)
+Replicas:
+  Desired:       2
+  Current:       3
+  Updated:       1
+  Ready:         2
+  Available:     2
+
+NAME                                  KIND         STATUS         AGE  INFO
+⟳ payments                            Rollout      ✖ Degraded     57m  
+├──# revision:6                                                        
+│  ├──⧉ payments-6b4546dcd6           ReplicaSet   ✔ Healthy      40m  canary
+│  │  └──□ payments-6b4546dcd6-4bdkr  Pod          ✔ Running      45s  ready:1/1
+│  └──α payments-6b4546dcd6-6         AnalysisRun  ✖ Failed       42s  ✖ 4,⚠ 4
+├──# revision:5                                                        
+│  └──⧉ payments-5d9d4d4787           ReplicaSet   ◌ Progressing  57m  stable
+│     ├──□ payments-5d9d4d4787-tjnbz  Pod          ✔ Running      14m  ready:1/1
+│     └──□ payments-5d9d4d4787-nphn9  Pod          ✔ Running      2s   ready:0/1
+├──# revision:4                                                        
+│  └──α payments-6b4546dcd6-4         AnalysisRun  ✖ Failed       24m  ✖ 4,⚠ 6
+└──# revision:2                                                        
+   └──α payments-6b4546dcd6-2         AnalysisRun  ✖ Failed       40m  ✖ 4,⚠ 4

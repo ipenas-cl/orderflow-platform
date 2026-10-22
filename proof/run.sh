@@ -63,6 +63,12 @@ done
 
 # ------------------------------------------------------------------- game day
 cleanup_chaos
+# Seed stock for the load test: the demo catalogue (25-250 units) would sell out
+# in seconds at 20 rps and every later order would be compensated as
+# out-of-stock. That is correct saga behaviour but not what this run measures.
+kubectl -n orderflow exec postgres-0 -- psql -U orderflow -d inventory -qAt -c \
+  "UPDATE items SET on_hand = reserved + 100000 WHERE sku IN ('SKU-KEYBOARD','SKU-MOUSE','SKU-MONITOR')" >/dev/null
+mark stock_seeded
 mark gameday_start
 k6job gameday proof/k6/gameday.js STEADY="$STEADY"
 sleep 90

@@ -1,9 +1,7 @@
 # The same `make prove` as on a laptop, on a GitHub runner (4 vCPU / 16 GB).
 name: prove
 on:
-  workflow_dispatch:
-    inputs:
-      steady: { description: "steady-state load duration", default: 7m }
+  workflow_dispatch: {}
   schedule: [{ cron: "0 6 * * 1" }]   # weekly game day
 permissions: { contents: read }
 jobs:
@@ -13,8 +11,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with: { path: orderflow-platform }
+      - id: ref
+        run: echo "sha=$(tr -d '[:space:]' < orderflow-platform/release/orderflow.ref)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
-        with: { repository: ipenas-cl/orderflow, path: orderflow }
+        with: { repository: ipenas-cl/orderflow, path: orderflow, ref: "${{ steps.ref.outputs.sha }}" }
       - name: Tools
         run: |
           curl -sSLo kind https://kind.sigs.k8s.io/dl/v0.24.0/kind-linux-amd64 && sudo install kind /usr/local/bin/
@@ -29,7 +29,7 @@ jobs:
           docker pull -q postgres:16-alpine && docker pull -q nats:2.10-alpine
       - name: make prove
         working-directory: orderflow-platform
-        run: make prove STEADY=${{ inputs.steady || '7m' }}
+        run: make prove STEADY=7m
       - name: Job summary
         if: always()
         working-directory: orderflow-platform
