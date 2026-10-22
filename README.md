@@ -50,12 +50,14 @@ with matplotlib; ~6 GB RAM, ~8 GB free disk; about 30 minutes.
 git clone https://github.com/ipenas-cl/orderflow-platform && cd orderflow-platform
 make images   # clones ipenas-cl/orderflow next to this repo at release/orderflow.ref and builds it
 make prove    # kind cluster + add-ons + Argo CD sync + game day + bad canary + report
-open docs/results/report.md
+open docs/results/report.md   # or xdg-open on Linux
 make down
 ```
 
 Static checks only (no cluster): `make lint` (terraform fmt/validate,
 tflint, checkov, kustomize render, Kyverno CLI on every pod template).
+Needs terraform 1.9, tflint, checkov, kustomize and the kyverno CLI on PATH;
+CI (`.github/workflows/iac.yml`) installs the same pinned versions.
 
 Nothing here creates AWS resources unless you run `terraform apply` yourself
 in `terraform/envs/*`; see [`docs/cost.md`](docs/cost.md) before you do.
