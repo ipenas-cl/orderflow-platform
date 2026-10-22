@@ -67,6 +67,7 @@ jobs:
           ignore-unfixed: true
           exit-code: "1"
           format: sarif
+          limit-severities-for-sarif: true   # else SARIF ignores severity and any LOW trips the gate
           output: trivy.sarif
       - uses: github/codeql-action/upload-sarif@v3
         if: always()
