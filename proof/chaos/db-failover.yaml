@@ -1,0 +1,11 @@
+# DB failover simulation: the primary Postgres process dies abruptly; the
+# StatefulSet brings it back on the same volume (stand-in for an Aurora
+# writer failover). Measured: time to writable DB and time to healthy services.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata: { name: db-failover, namespace: orderflow }
+spec:
+  action: pod-kill
+  mode: all
+  gracePeriod: 0
+  selector: { namespaces: [orderflow], labelSelectors: { app.kubernetes.io/name: postgres } }

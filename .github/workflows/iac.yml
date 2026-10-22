@@ -1,0 +1,40 @@
+name: iac
+on:
+  pull_request:
+  push: { branches: [main] }
+permissions: { contents: read }
+jobs:
+  terraform:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: 1.9.8 }
+      - uses: terraform-linters/setup-tflint@v4
+        with: { tflint_version: v0.53.0 }
+      - run: tflint --init --config=$PWD/terraform/.tflint.hcl
+        env: { GITHUB_TOKEN: "${{ github.token }}" }
+      - run: pip install checkov==3.2.*
+      - run: make tf-lint
+  manifests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: imranismail/setup-kustomize@v2
+        with: { kustomize-version: 5.5.0 }
+      - run: make k8s-lint
+      - name: kubeconform (core kinds; CRDs via the datree catalog)
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz
+          for d in gitops/orderflow/overlays/*; do
+            kustomize build $d | ./kubeconform -strict -summary -ignore-missing-schemas \
+              -schema-location default \
+              -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+          done
+      - name: Kyverno CLI - manifests satisfy our own policies
+        run: |
+          curl -sSL https://github.com/kyverno/kyverno/releases/download/v1.15.2/kyverno-cli_v1.15.2_linux_x86_64.tar.gz | tar xz kyverno
+          kustomize build gitops/orderflow/overlays/kind > /tmp/kind.yaml
+          ./kyverno apply gitops/platform/kyverno-policies/require-non-root.yaml \
+            gitops/platform/kyverno-policies/require-probes.yaml \
+            gitops/platform/kyverno-policies/require-limits.yaml --resource /tmp/kind.yaml

@@ -1,0 +1,48 @@
+# The same `make prove` as on a laptop, on a GitHub runner (4 vCPU / 16 GB).
+name: prove
+on:
+  workflow_dispatch:
+    inputs:
+      steady: { description: "steady-state load duration", default: 7m }
+  schedule: [{ cron: "0 6 * * 1" }]   # weekly game day
+permissions: { contents: read }
+jobs:
+  prove:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: orderflow-platform }
+      - uses: actions/checkout@v4
+        with: { repository: ipenas-cl/orderflow, path: orderflow }
+      - name: Tools
+        run: |
+          curl -sSLo kind https://kind.sigs.k8s.io/dl/v0.24.0/kind-linux-amd64 && sudo install kind /usr/local/bin/
+          curl -sSL https://github.com/argoproj/argo-rollouts/releases/download/v1.7.2/kubectl-argo-rollouts-linux-amd64 -o r && sudo install r /usr/local/bin/kubectl-argo-rollouts
+          pip install matplotlib
+      - name: Build orderflow images
+        working-directory: orderflow
+        run: |
+          for s in orders payments inventory fulfillment payprovider devissuer; do
+            docker build -q --build-arg SERVICE=$s -t orderflow-$s:latest . ; done
+          docker build -q -f Dockerfile.admin -t orderflow-admin:latest .
+          docker pull -q postgres:16-alpine && docker pull -q nats:2.10-alpine
+      - name: make prove
+        working-directory: orderflow-platform
+        run: make prove STEADY=${{ inputs.steady || '7m' }}
+      - name: Job summary
+        if: always()
+        working-directory: orderflow-platform
+        run: test -f docs/results/report.md && cat docs/results/report.md >> "$GITHUB_STEP_SUMMARY" || echo "no report" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: proof-results
+          path: |
+            orderflow-platform/docs/results
+            orderflow-platform/proof/.out
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          kubectl get pods -A -o wide; kubectl -n orderflow get rollouts,analysisruns,scaledobjects,hpa
+          kubectl -n argocd get applications -o wide

@@ -1,0 +1,7 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata: { name: payments-pod-kill, namespace: orderflow }
+spec:
+  action: pod-kill
+  mode: one
+  selector: { namespaces: [orderflow], labelSelectors: { app.kubernetes.io/name: payments } }

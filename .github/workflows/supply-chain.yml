@@ -1,0 +1,104 @@
+# Build -> SBOM -> scan -> sign -> promote by GitOps PR.
+# Images come from the application repo (ipenas-cl/orderflow) at a pinned ref;
+# this repo owns how they reach production.
+name: supply-chain
+on:
+  workflow_dispatch:
+    inputs:
+      ref: { description: "orderflow git ref to release", required: true, default: main }
+  repository_dispatch:
+    types: [orderflow-release]
+permissions: { contents: read }
+env:
+  REGISTRY: ghcr.io/ipenas-cl/orderflow
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write          # keyless cosign (Fulcio) + provenance
+      security-events: write   # Trivy SARIF upload
+    strategy:
+      fail-fast: true
+      matrix:
+        service: [orders, payments, inventory, fulfillment, admin, payprovider, devissuer]
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ipenas-cl/orderflow
+          ref: ${{ inputs.ref || github.event.client_payload.ref }}
+      - id: meta
+        run: echo "tag=sha-$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}" }
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.service == 'admin' && 'Dockerfile.admin' || 'Dockerfile' }}
+          build-args: SERVICE=${{ matrix.service }}
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ matrix.service }}:${{ steps.meta.outputs.tag }}
+          provenance: mode=max
+          sbom: false
+      - name: SBOM (SPDX, syft)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ matrix.service }}@${{ steps.build.outputs.digest }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+      - name: Trivy - fail on fixable HIGH/CRITICAL
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ matrix.service }}@${{ steps.build.outputs.digest }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: sarif
+          output: trivy.sarif
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with: { sarif_file: trivy.sarif, category: "trivy-${{ matrix.service }}" }
+      - uses: sigstore/cosign-installer@v3
+      - name: Sign image and attest SBOM (keyless)
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ matrix.service }}@${{ steps.build.outputs.digest }}
+        run: |
+          cosign sign --yes "$IMAGE"
+          cosign attest --yes --type spdxjson --predicate sbom.spdx.json "$IMAGE"
+          cosign verify "$IMAGE" \
+            --certificate-identity "https://github.com/${{ github.repository }}/.github/workflows/supply-chain.yml@refs/heads/main" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+  promote:
+    # Promotion is a pull request, never a direct push: dev auto-merges after
+    # checks; staging and prod require review (CODEOWNERS + environment rules).
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions: { contents: write, pull-requests: write }
+    strategy:
+      max-parallel: 1
+      matrix:
+        env: [dev, staging, prod]
+    environment: ${{ matrix.env }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: imranismail/setup-kustomize@v2
+      - name: Bump image tags in the ${{ matrix.env }} overlay
+        working-directory: gitops/orderflow/overlays/${{ matrix.env }}
+        run: |
+          for s in orders payments inventory fulfillment admin payprovider devissuer; do
+            kustomize edit set image ghcr.io/ipenas-cl/orderflow/$s=ghcr.io/ipenas-cl/orderflow/$s:${{ needs.build.outputs.tag }}
+          done
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          branch: promote/${{ matrix.env }}/${{ needs.build.outputs.tag }}
+          title: "promote ${{ needs.build.outputs.tag }} to ${{ matrix.env }}"
+          commit-message: "gitops(${{ matrix.env }}): orderflow ${{ needs.build.outputs.tag }}"
+          body: |
+            Signed images (cosign keyless, this workflow), SBOM attested, Trivy clean for fixable HIGH/CRITICAL.
+            Merging lets Argo CD start a canary gated by the SLO AnalysisTemplate; a failed analysis rolls back on its own.
+          labels: promotion, ${{ matrix.env }}

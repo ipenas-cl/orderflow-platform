@@ -1,0 +1,11 @@
+# NATS unavailable for 45s (pod-failure keeps the pod object but the
+# container is replaced with a pause image). Producers fall back to the
+# transactional outbox; consumers resume from durable cursors.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata: { name: nats-outage, namespace: orderflow }
+spec:
+  action: pod-failure
+  mode: all
+  selector: { namespaces: [orderflow], labelSelectors: { app.kubernetes.io/name: nats } }
+  duration: 45s

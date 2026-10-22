@@ -1,0 +1,11 @@
+# 300ms (+/-50ms) added to every packet leaving the payments pods for 60s.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata: { name: payments-latency, namespace: orderflow }
+spec:
+  action: delay
+  mode: all
+  selector: { namespaces: [orderflow], labelSelectors: { app.kubernetes.io/name: payments } }
+  delay: { latency: 300ms, jitter: 50ms, correlation: "50" }
+  direction: to
+  duration: 60s

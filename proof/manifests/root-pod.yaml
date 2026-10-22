@@ -1,0 +1,8 @@
+# Must be REJECTED by Kyverno: runs as root, no probes, no limits.
+apiVersion: v1
+kind: Pod
+metadata: { name: policy-violation, namespace: orderflow }
+spec:
+  containers:
+    - name: c
+      image: nats:2.10-alpine

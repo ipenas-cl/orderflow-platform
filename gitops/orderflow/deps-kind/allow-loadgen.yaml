@@ -1,0 +1,13 @@
+# kind only: k6 runs in the "loadgen" namespace and hits the edges directly.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-loadgen
+spec:
+  podSelector:
+    matchExpressions: [{ key: app.kubernetes.io/name, operator: In, values: [orders, payments] }]
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: loadgen } }
+      ports: [{ protocol: TCP, port: 8080 }]
