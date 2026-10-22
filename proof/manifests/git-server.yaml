@@ -14,16 +14,18 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: git
-          image: alpine/git:2.47.2
+          # Reuses the Argo CD image (Debian git ships git-daemon): no extra pull.
+          image: quay.io/argoproj/argocd:v3.5.5
           imagePullPolicy: IfNotPresent
           command: [sh, -c]
+          env: [{ name: HOME, value: /tmp }]
           args:
             - git config --global --add safe.directory '*' &&
-              exec git daemon --reuseaddr --export-all --base-path=/ --listen=0.0.0.0 --port=9418 /repo
+              exec git daemon --reuseaddr --export-all --base-path=/srv/git --listen=0.0.0.0 --port=9418
           ports: [{ containerPort: 9418 }]
           resources: { requests: { cpu: 10m, memory: 16Mi }, limits: { memory: 64Mi } }
           readinessProbe: { tcpSocket: { port: 9418 } }
-          volumeMounts: [{ name: repo, mountPath: /repo, readOnly: true }]
+          volumeMounts: [{ name: repo, mountPath: /srv/git/orderflow-platform, readOnly: true }]
       volumes:
         - name: repo
           hostPath: { path: /repo, type: Directory }

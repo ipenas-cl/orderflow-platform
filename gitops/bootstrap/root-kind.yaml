@@ -10,7 +10,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: git://git-server.argocd.svc.cluster.local/repo
+    repoURL: git://git-server.argocd.svc.cluster.local/orderflow-platform
     targetRevision: HEAD
     path: gitops/apps/kind
   destination: { server: https://kubernetes.default.svc, namespace: argocd }

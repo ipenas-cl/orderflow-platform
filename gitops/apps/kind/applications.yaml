@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: git://git-server.argocd.svc.cluster.local/repo
+    repoURL: git://git-server.argocd.svc.cluster.local/orderflow-platform
     targetRevision: HEAD
     path: gitops/platform/kyverno-policies-kind
   destination: { server: https://kubernetes.default.svc, namespace: kyverno }
@@ -26,7 +26,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: git://git-server.argocd.svc.cluster.local/repo
+    repoURL: git://git-server.argocd.svc.cluster.local/orderflow-platform
     targetRevision: HEAD
     path: gitops/orderflow/overlays/kind
   destination: { server: https://kubernetes.default.svc, namespace: orderflow }
