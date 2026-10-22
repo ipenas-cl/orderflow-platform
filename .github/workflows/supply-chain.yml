@@ -77,6 +77,7 @@ jobs:
           # the workspace holds the app repo checkout; attribute results to this repo's commit
           sha: ${{ github.sha }}
           ref: ${{ github.ref }}
+          checkout_path: ${{ github.workspace }}/platform
       - name: Trivy findings (readable)
         if: failure()
         run: jq -r '.runs[].results[] | "\(.ruleId)  \(.message.text | split("\n")[0:3] | join(" "))"' trivy.sarif || true
