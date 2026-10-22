@@ -17,7 +17,7 @@ spec:
                 matchLabels: { policy.orderflow.dev/enforce: "true" }
       verifyImages:
         - failureAction: Enforce
-          imageReferences: ["ghcr.io/ipenas-cl/orderflow/*"]
+          imageReferences: ["ghcr.io/ipenas-cl/orderflow/*", "ghcr.io/ipenas-cl/orderflow-platform/*"]
           mutateDigest: true
           verifyDigest: true
           required: true

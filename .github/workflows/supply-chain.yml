@@ -10,7 +10,9 @@ on:
   workflow_dispatch: {}
 permissions: { contents: read }
 env:
-  REGISTRY: ghcr.io/ipenas-cl/orderflow
+  # Signed release images live under this repo so its GITHUB_TOKEN can push
+  # them; ghcr.io/ipenas-cl/orderflow/* belongs to the app repo's own CI.
+  REGISTRY: ghcr.io/ipenas-cl/orderflow-platform
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -95,7 +97,7 @@ jobs:
         working-directory: gitops/orderflow/overlays/${{ matrix.env }}
         run: |
           for s in orders payments inventory fulfillment admin payprovider devissuer; do
-            kustomize edit set image ghcr.io/ipenas-cl/orderflow/$s=ghcr.io/ipenas-cl/orderflow/$s:${{ needs.build.outputs.tag }}
+            kustomize edit set image ghcr.io/ipenas-cl/orderflow/$s=${{ env.REGISTRY }}/$s:${{ needs.build.outputs.tag }}
           done
       - uses: peter-evans/create-pull-request@v7
         with:
