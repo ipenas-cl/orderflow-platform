@@ -1,0 +1,11 @@
+# Passes Pod Security "restricted" but has no probes and no resources:
+# must be REJECTED by Kyverno (require-probes, require-requests-limits).
+apiVersion: v1
+kind: Pod
+metadata: { name: policy-violation-kyverno, namespace: orderflow }
+spec:
+  securityContext: { runAsNonRoot: true, runAsUser: 1000, seccompProfile: { type: RuntimeDefault } }
+  containers:
+    - name: c
+      image: nats:2.10-alpine
+      securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }

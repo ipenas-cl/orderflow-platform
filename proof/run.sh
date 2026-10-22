@@ -35,46 +35,83 @@ spec:
       volumes: [{ name: s, configMap: { name: $name-script } }]
 YAML
 }
-k6wait() { kubectl -n loadgen wait --for=condition=complete --for=condition=failed "job/$1" --timeout=20m >/dev/null 2>&1 || true
+k6wait() { # wait for the Job to finish (complete or failed), then keep its log
+  for i in $(seq 1 240); do
+    [[ -n "$(kubectl -n loadgen get job "$1" -o jsonpath='{.status.completionTime}{.status.failed}')" ]] && break
+    sleep 5
+  done
   kubectl -n loadgen logs "job/$1" > "$OUT/$1.log" 2>&1 || true; }
-apps_ready() { # all orderflow app pods ready?
-  kubectl -n orderflow get pods -l app.kubernetes.io/part-of=orderflow \
-    -o jsonpath='{range .items[*]}{.status.containerStatuses[0].ready}{"\n"}{end}' | grep -qv true && return 1 || return 0; }
+cleanup_chaos() {
+  kubectl -n orderflow delete podchaos,networkchaos,httpchaos --all --wait=false >/dev/null 2>&1 || true
+  for k in networkchaos httpchaos podchaos; do
+    for n in $(kubectl -n orderflow get $k -o name 2>/dev/null); do
+      kubectl -n orderflow patch "$n" --type merge -p '{"metadata":{"finalizers":[]}}' >/dev/null 2>&1 || true
+    done
+  done; }
 
 kubectl create namespace loadgen --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 
 # ---------------------------------------------------------------- policy gate
-log "Kyverno admission: a root pod without probes/limits must be rejected"
-if out=$(kubectl apply -f proof/manifests/root-pod.yaml 2>&1); then
-  mark policy_violation_admitted "$(echo "$out" | json)"; kubectl delete -f proof/manifests/root-pod.yaml
-else
-  mark policy_violation_rejected "$(echo "$out" | json)"
-fi
+log "admission: violating pods must be rejected"
+for m in root-pod no-probes-pod; do
+  if out=$(kubectl apply -f proof/manifests/$m.yaml 2>&1); then
+    mark "policy_${m//-/_}_admitted" "$(echo "$out" | json)"; kubectl delete -f proof/manifests/$m.yaml
+  else
+    mark "policy_${m//-/_}_rejected" "$(echo "$out" | json)"
+  fi
+done
 
 # ------------------------------------------------------------------- game day
-kubectl -n orderflow delete podchaos,networkchaos --all >/dev/null 2>&1 || true
+cleanup_chaos
 mark gameday_start
 k6job gameday proof/k6/gameday.js STEADY="$STEADY"
 sleep 90
 mark chaos_payments_pod_kill; kubectl apply -f proof/chaos/payments-pod-kill.yaml
 sleep 60
 mark chaos_payments_latency_start; kubectl apply -f proof/chaos/payments-latency.yaml
-sleep 75
+sleep 10
+if [[ "$(kubectl -n orderflow get networkchaos payments-latency -o jsonpath='{.status.conditions[?(@.type=="AllInjected")].status}')" != True ]]; then
+  # tc netem missing in this kernel (CONFIG_NET_SCH_NETEM): record that, then fall back
+  mark networkchaos_not_injected "$(kubectl -n orderflow get networkchaos payments-latency -o jsonpath='{.status.experiment.containerRecords[0].phase}' | json)"
+  # recovery can't remove a qdisc that was never added; drop the finalizer
+  kubectl -n orderflow delete networkchaos payments-latency --wait=false
+  kubectl -n orderflow patch networkchaos payments-latency --type merge -p '{"metadata":{"finalizers":[]}}' >/dev/null 2>&1 || true
+  # fallback: same fault one hop further, on payments' dependency, using the
+  # PSP simulator's runtime fault switch (application-level injection)
+  kubectl -n orderflow port-forward svc/payprovider 18090:8090 >/dev/null 2>&1 & pf=$!; sleep 2
+  before=$(curl -fsS localhost:18090/admin/chaos)
+  curl -fsS -X PUT localhost:18090/admin/chaos -H 'Content-Type: application/json' \
+    -d "$(echo "$before" | python3 -c 'import json,sys; c=json.load(sys.stdin); c.update(latency_ms=300, jitter_ms=100); print(json.dumps(c))')" >/dev/null
+  mark chaos_psp_latency_start "$(curl -fsS localhost:18090/admin/chaos | json)"
+  sleep 60
+  curl -fsS -X PUT localhost:18090/admin/chaos -H 'Content-Type: application/json' -d "$before" >/dev/null
+  kill $pf
+else
+  sleep 65
+fi
 mark chaos_payments_latency_end
 mark chaos_nats_outage_start; kubectl apply -f proof/chaos/nats-outage.yaml
 sleep 50
 mark chaos_nats_outage_end
 sleep 40
-mark chaos_db_failover_start; t0=$(date +%s)
+mark chaos_db_failover_start
+uid=$(kubectl -n orderflow get pod postgres-0 -o jsonpath='{.metadata.uid}'); t0=$(date +%s.%N)
 kubectl apply -f proof/chaos/db-failover.yaml
-sleep 3
-until kubectl -n orderflow exec postgres-0 -- pg_isready -h 127.0.0.1 -q 2>/dev/null; do sleep 1; done
-mark db_writable "$(( $(date +%s) - t0 ))"
-until apps_ready; do sleep 1; done
-mark services_recovered "$(( $(date +%s) - t0 ))"
+until [[ "$(kubectl -n orderflow get pod postgres-0 -o jsonpath='{.metadata.uid}' 2>/dev/null)" != "$uid" ]] \
+   && kubectl -n orderflow exec postgres-0 -- pg_isready -h 127.0.0.1 -q 2>/dev/null; do sleep 0.5; done
+db_s=$(python3 -c "import time; print(round(time.time()-$t0,1))")
+mark db_writable "$db_s"
+# watch app readiness for 90 s: did anything go unready, and when was everything ready again?
+total=$(kubectl -n orderflow get pods -l app.kubernetes.io/part-of=orderflow --no-headers | wc -l); min=$total; last_bad=0
+for i in $(seq 1 90); do
+  r=$(kubectl -n orderflow get pods -l app.kubernetes.io/part-of=orderflow -o jsonpath='{range .items[*]}{.status.containerStatuses[0].ready}{"\n"}{end}' | grep -c true || true)
+  (( r < min )) && min=$r; (( r < total )) && last_bad=$(python3 -c "import time; print(round(time.time()-$t0,1))")
+  sleep 1
+done
+mark services_recovered "{\"db_writable_s\": $db_s, \"app_pods\": $total, \"min_ready\": $min, \"all_ready_after_s\": $last_bad}"
 k6wait gameday
 mark gameday_end
-kubectl -n orderflow delete podchaos,networkchaos --all >/dev/null 2>&1 || true
+cleanup_chaos
 
 # ------------------------------------------------- canary: bad release via git
 log "bad release: payments pointed at a PSP host that does not exist (config regression)"

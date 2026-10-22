@@ -1,4 +1,5 @@
-# Must be REJECTED by Kyverno: runs as root, no probes, no limits.
+# Runs as root, no probes, no limits: must be REJECTED at admission
+# (Pod Security "restricted" on the namespace, and Kyverno behind it).
 apiVersion: v1
 kind: Pod
 metadata: { name: policy-violation, namespace: orderflow }

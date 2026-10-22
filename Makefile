@@ -22,6 +22,10 @@ collect: ## query Prometheus and write docs/results (report + charts)
 down: ## delete the kind cluster
 	kind delete cluster --name $(CLUSTER)
 
+cost: ## infracost breakdown of prod (needs INFRACOST_API_KEY)
+	@test -n "$$INFRACOST_API_KEY" || { echo "set INFRACOST_API_KEY (free key: infracost auth login)"; exit 1; }
+	infracost breakdown --path terraform/envs/prod --usage-file docs/infracost-usage.yml
+
 lint: tf-lint k8s-lint ## all static checks
 
 tf-lint: ## terraform fmt/validate, tflint, checkov
@@ -33,4 +37,4 @@ tf-lint: ## terraform fmt/validate, tflint, checkov
 k8s-lint: ## render every overlay and app-of-apps
 	@for d in gitops/orderflow/overlays/* gitops/apps/* gitops/platform/kyverno-policies*; do kustomize build $$d >/dev/null && echo "ok  $$d" || exit 1; done
 
-.PHONY: help prove up run collect down lint tf-lint k8s-lint
+.PHONY: help prove up run collect down cost lint tf-lint k8s-lint

@@ -1,0 +1,27 @@
+# us-west-2 (DR). Normally warm: 1 replica per service, autoscalers allowed
+# to grow to prod size. The region-failover runbook's "scale DR" PR changes
+# the floor to prod values (3) in this file.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: [../prod]
+patches:
+  - target: { kind: Rollout }
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target: { kind: ScaledObject }
+    patch: |-
+      - op: replace
+        path: /spec/minReplicaCount
+        value: 1
+  - target: { kind: HorizontalPodAutoscaler }
+    patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+  - target: { kind: ServiceAccount, name: payments }
+    patch: |-
+      - op: replace
+        path: /metadata/annotations/eks.amazonaws.com~1role-arn
+        value: arn:aws:iam::111111111111:role/orderflow-prod-usw2-payments

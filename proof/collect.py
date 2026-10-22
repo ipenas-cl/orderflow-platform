@@ -122,6 +122,21 @@ edge_avail = 1 - edge_err / edge_total if edge_total else float("nan")
 budget = (1 - avail) / 0.001 if avail == avail else float("nan")
 ts_ = lambda t: dt.datetime.fromtimestamp(t).strftime("%Y-%m-%d %H:%M:%S")
 cancel = saga.get("CANCELLED", 0) + saga.get("REFUNDED", 0)
+svc = ev.get("services_recovered", {}).get("detail") or {}
+if not isinstance(svc, dict): svc = {}
+if "networkchaos_not_injected" in ev:
+    latency_how = ("NetworkChaos could not inject (kernel without tc netem) → fallback: +300 ms ±100 ms on the PSP that payments calls (simulator fault switch)"
+                   if "chaos_psp_latency_start" in ev else "NetworkChaos could not inject; no fallback ran")
+elif "chaos_payments_latency_start" in ev:
+    latency_how = "NetworkChaos 300 ms ± 50 ms on payments egress"
+else:
+    latency_how = "not run"
+def admission(prefix):
+    if prefix + "_rejected" in ev:
+        d = str(ev[prefix + "_rejected"].get("detail", ""))
+        who = [w for w, k in (("Kyverno", "kyverno"), ("Pod Security", "PodSecurity")) if k in d] or ["?"]
+        return "rejected by " + " + ".join(who)
+    return "ADMITTED" if prefix + "_admitted" in ev else "not run"
 
 lines = [
 "# Proof results", "",
@@ -138,10 +153,13 @@ f"| 1-minute windows with orders p99 < 300 ms | {fmt(lat_ok, pct=True)} | 99% |"
 f"| k6 orders: requests / failed / p99 | {fmt(k6m(g,'http_reqs','count'))} / {fmt(k6m(g,'http_req_failed','rate'), pct=True)} / {k6m(g,'http_req_duration','p(99)'):.0f} ms | |" if g else "| k6 game-day summary | missing | |",
 f"| Saga transitions | {', '.join(f'{k}={v:,.0f}' for k, v in sorted(saga.items()))} | |",
 f"| Saga compensations (CANCELLED + REFUNDED) | {cancel:,.0f} | every non-happy path ends compensated |",
-f"| DB failover: DB writable / all services ready | {ev.get('db_writable',{}).get('detail','n/a')} s / {ev.get('services_recovered',{}).get('detail','n/a')} s | RTO target (kind) 60 s |",
+f"| DB failover: Postgres killed → writable again | {ev.get('db_writable',{}).get('detail','n/a')} s | RTO (kind stand-in) < 60 s |",
+f"| DB failover: app pods ready (min during 90 s watch / total), last unready at | {svc.get('min_ready','n/a')}/{svc.get('app_pods','n/a')}, {svc.get('all_ready_after_s','n/a')} s | no restarts, self-recovery |",
+f"| Payments latency injection | {latency_how} | |",
 f"| Autoscaling events (SuccessfulRescale) | {len(rescale)} | |",
 f"| Bad canary release | {'auto-aborted' if 'canary_aborted' in ev else 'NOT aborted'} | auto-rollback, no human |",
-f"| Kyverno: root pod without probes/limits | {'rejected' if 'policy_violation_rejected' in ev else 'ADMITTED'} | rejected |",
+f"| Admission: root pod, no probes/limits | {admission('policy_root_pod')} | rejected |",
+f"| Admission: PSA-compliant pod without probes/limits | {admission('policy_no_probes_pod')} | rejected by Kyverno |",
 "", "## Timeline", "", "| Time | Event | Detail |", "|---|---|---|"]
 for e in events:
     d = e.get("detail")
