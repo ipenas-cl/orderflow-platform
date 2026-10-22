@@ -4,6 +4,8 @@ notifications: { enabled: false }
 applicationSet: { replicas: 0 }
 redis: { resources: { limits: { memory: 128Mi } } }
 configs:
-  params: { server.insecure: true }
+  params:
+    server.insecure: true
+    controller.diff.server.side: "true"   # diff like kubectl --server-side (no false OutOfSync on defaulted fields)
   cm:
     timeout.reconciliation: 30s

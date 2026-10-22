@@ -8,3 +8,6 @@ patches:
       - op: replace
         path: /spec/rules/0/verifyImages/0/failureAction
         value: Audit
+      - op: replace
+        path: /spec/rules/0/verifyImages/0/mutateDigest
+        value: false

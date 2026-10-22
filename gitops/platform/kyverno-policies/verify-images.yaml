@@ -34,3 +34,4 @@ spec:
                     - keyless:
                         issuer: https://token.actions.githubusercontent.com
                         subject: "https://github.com/ipenas-cl/orderflow-platform/.github/workflows/supply-chain.yml@refs/heads/main"
+                        rekor: { url: https://rekor.sigstore.dev }
